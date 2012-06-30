@@ -240,7 +240,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     mCompletionOn = isFullscreenMode();
                 }
 
-		mInputView.setKeyboard(mCurrentKeyboard);
+		if(null!=mInputView){
+		    mInputView.setKeyboard(mCurrentKeyboard);
+		}
 
                 // We also want to look at the current state of the editor
                 // to decide whether our alphabetic keyboard should start out
@@ -253,7 +255,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 // keyboard with no special features.
                 mCurrentKeyboard = mQwertyKeyboard;
 		mCurrentCtrlKey = mQwertyCtrlKey;
-		mInputView.setKeyboard(mCurrentKeyboard);
+		if(null!=mInputView){
+		    mInputView.setKeyboard(mCurrentKeyboard);
+		}
                 updateShiftKeyState(attribute);
         }
         
