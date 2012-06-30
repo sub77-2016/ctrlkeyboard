@@ -68,7 +68,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     private boolean mPredictionOn;
     private boolean mCompletionOn;
     private int mLastDisplayWidth;
-    private boolean mCapsLock=false;
+    private boolean mCapsLock;
     private long mLastShiftTime;
     private long mMetaState;
     
@@ -182,6 +182,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         mPredictionOn = false;
         mCompletionOn = false;
         mCompletions = null;
+	mCapsLock = false;
         
         // We are now going to initialize our state based on the type of
         // text being edited.
@@ -238,7 +239,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     mPredictionOn = false;
                     mCompletionOn = isFullscreenMode();
                 }
-                
+
+		mInputView.setKeyboard(mCurrentKeyboard);
+
                 // We also want to look at the current state of the editor
                 // to decide whether our alphabetic keyboard should start out
                 // shifted.
@@ -250,6 +253,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 // keyboard with no special features.
                 mCurrentKeyboard = mQwertyKeyboard;
 		mCurrentCtrlKey = mQwertyCtrlKey;
+		mInputView.setKeyboard(mCurrentKeyboard);
                 updateShiftKeyState(attribute);
         }
         
@@ -491,11 +495,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             if (ei != null && ei.inputType != EditorInfo.TYPE_NULL) {
                 caps = getCurrentInputConnection().getCursorCapsMode(attr.inputType);
             }
-            //mInputView.setShifted(mCapsLock || caps != 0);
-	    if(!mCapsLock&&0==caps){
-		mInputView.setKeyboard(mQwertyKeyboard);
-		mInputView.setShifted(false);
-	    }
+	    mInputView.setShifted(mQwertyShiftedKeyboard==mInputView.getKeyboard());
         }
     }
     
