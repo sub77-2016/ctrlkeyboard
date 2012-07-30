@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" 
         package="jp.co.pline.android.ctrlkeyboard"
-	android:versionCode="13"
-	android:versionName="1.6.5"
+	android:versionCode="14"
+	android:versionName="1.6.6"
 	>
+    <uses-sdk
+        android:minSdkVersion="4"
+        android:targetSdkVersion="10" />
     <application android:label="@string/ime_name" android:icon="@drawable/icon">
         <service android:name="CtrlKeyboard"
                 android:permission="android.permission.BIND_INPUT_METHOD"
@@ -13,5 +16,4 @@
             <meta-data android:name="android.view.im" android:resource="@xml/method" />
         </service>
     </application>
-    <uses-sdk android:minSdkVersion="4" />
 </manifest>
