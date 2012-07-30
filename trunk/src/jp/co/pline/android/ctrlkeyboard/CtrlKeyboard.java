@@ -547,6 +547,26 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	return ("org.connectbot".equals(editorInfo.packageName)||"com.madgag.ssh.agent".equals(editorInfo.packageName))&&0==editorInfo.inputType;
     }
 
+    private void setShiftOn(){
+	mQwertyShiftedCtrlKey.on=mQwertyCtrlKey.on;
+	mQwertyCtrlKey.on=false;
+	mCurrentCtrlKey=mQwertyShiftedCtrlKey;
+	mCurrentKeyboard=mQwertyShiftedKeyboard;
+
+	mInputView.setKeyboard(mCurrentKeyboard);
+	mInputView.setShifted(true);
+    }
+
+    private void setShiftOff(){
+	mQwertyCtrlKey.on=mQwertyShiftedCtrlKey.on;
+	mQwertyShiftedCtrlKey.on=false;
+	mCurrentCtrlKey=mQwertyCtrlKey;
+	mCurrentKeyboard=mQwertyKeyboard;
+
+	mInputView.setKeyboard(mCurrentKeyboard);
+	mInputView.setShifted(false);
+    }
+
     // Implementation of KeyboardViewListener
 
     public void onKey(int primaryCode, int[] keyCodes) {
@@ -653,8 +673,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         } else {
 	    handleCharacter(primaryCode, keyCodes);
 	    if(mInputView.isShifted()&&!mCapsLock){
-		mInputView.setKeyboard(mQwertyKeyboard);
-		mInputView.setShifted(false);
+		setShiftOff();
 	    }
 	}
     }
@@ -730,22 +749,10 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	    if(prevCapsLock==mCapsLock||prevCapsLock){
 		if(mQwertyKeyboard==currentKeyboard){
 		    // shift: turn on, capslock: keep off
-		    mQwertyShiftedCtrlKey.on=mQwertyCtrlKey.on;
-		    mQwertyCtrlKey.on=false;
-		    mCurrentCtrlKey=mQwertyShiftedCtrlKey;
-		    mCurrentKeyboard=mQwertyShiftedKeyboard;
-
-		    mInputView.setKeyboard(mCurrentKeyboard);
-		    mInputView.setShifted(true);
+		    setShiftOn();
 		}else{
 		    // shift: turn off, capslock: turn off or keep off
-		    mQwertyCtrlKey.on=mQwertyShiftedCtrlKey.on;
-		    mQwertyShiftedCtrlKey.on=false;
-		    mCurrentCtrlKey=mQwertyCtrlKey;
-		    mCurrentKeyboard=mQwertyKeyboard;
-
-		    mInputView.setKeyboard(mCurrentKeyboard);
-		    mInputView.setShifted(false);
+		    setShiftOff();
 		}
 	    }else{
 		// shift: keep on, capslock: turn on
