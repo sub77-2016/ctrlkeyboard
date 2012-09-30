@@ -20,6 +20,7 @@
 
 package jp.co.pline.android.ctrlkeyboard;
 
+import android.os.Build;
 import android.os.SystemClock;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
@@ -615,7 +616,11 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	    if(false){
 	    }else if(8==primaryCode){
 		// BS: KeyEvent{ code=67 meta=0 scancode=14 }
-		sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+		if(isConnectBot()){
+		    getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		}else{
+		    sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+		}
 	    }else if(9==primaryCode){
 		// Tab: KeyEvent{ code=61 meta=0 scancode=15 }
 		if(isConnectBot()){
@@ -631,6 +636,16 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_M);
 		}else{
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER);
+		}
+	    }else if(127==primaryCode){
+		if(isConnectBot()){
+		    getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		}else{
+		    if(Build.VERSION_CODES.HONEYCOMB<=Build.VERSION.SDK_INT){
+			sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL);
+		    }else{
+			getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		    }
 		}
 	    }else{
 		getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
