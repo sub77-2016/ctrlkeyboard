@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" 
         package="jp.co.pline.android.ctrlkeyboard"
-	android:versionCode="15"
-	android:versionName="1.6.7"
+	android:versionCode="16"
+	android:versionName="1.7"
 	>
     <uses-sdk
         android:minSdkVersion="4"
@@ -15,5 +15,10 @@
             </intent-filter>
             <meta-data android:name="android.view.im" android:resource="@xml/method" />
         </service>
+        <activity android:name=".Settings" android:label="@string/settings_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
