@@ -4,13 +4,13 @@
  *
  * original:
  * Copyright (C) 2008-2009 Google Inc.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -50,21 +50,21 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     static final boolean DEBUG = false;
 
     static final int KEYCODE_CTRL=-10;
-    
+
     /**
      * This boolean indicates the optional example code for performing
      * processing of hard keys in addition to regular text generation
      * from on-screen interaction.  It would be used for input methods that
-     * perform language translations (such as converting text entered on 
+     * perform language translations (such as converting text entered on
      * a QWERTY keyboard to Chinese), but may not be used for input methods
      * that are primarily intended to be used for on-screen text entry.
      */
     static final boolean PROCESS_HARD_KEYS = true;
-    
+
     private KeyboardView mInputView;
     private CandidateView mCandidateView;
     private CompletionInfo[] mCompletions;
-    
+
     private StringBuilder mComposing = new StringBuilder();
     private boolean mPredictionOn;
     private boolean mCompletionOn;
@@ -72,20 +72,25 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     private boolean mCapsLock;
     private long mLastShiftTime;
     private long mMetaState;
-    
-    private LatinKeyboard mSymbolsKeyboard;
-    private LatinKeyboard mSymbolsShiftedKeyboard;
+
+    private LatinKeyboard mCurrentKeyboard;
     private LatinKeyboard mQwertyKeyboard;
     private LatinKeyboard mQwertyShiftedKeyboard;
-    private LatinKeyboard mCurrentKeyboard;
-    
+    private LatinKeyboard mSymbolsKeyboard;
+
     private String mWordSeparators;
 
-    private Keyboard.Key mSymbolsCtrlKey;
+    private boolean mAssignKey4Chars=false;
+
+    private Keyboard.Key mCurrentCtrlKey;
     private Keyboard.Key mQwertyCtrlKey;
     private Keyboard.Key mQwertyShiftedCtrlKey;
-    private Keyboard.Key mCurrentCtrlKey;
-    
+    private Keyboard.Key mSymbolsCtrlKey;
+
+    private Keyboard.Key mCurrentShiftKey;
+    private Keyboard.Key mQwertyShiftKey;
+    private Keyboard.Key mQwertyShiftedShiftKey;
+
     /**
      * Main initialization of the input method component.  Be sure to call
      * to super class.
@@ -94,7 +99,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         super.onCreate();
         mWordSeparators=getResources().getString(R.string.word_separators);
     }
-    
+
     /**
      * This is the point where you can do all of your UI initialization.  It
      * is called after creation and any configuration change.
@@ -108,19 +113,12 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             if (displayWidth == mLastDisplayWidth) return;
             mLastDisplayWidth = displayWidth;
         }
-        mQwertyKeyboard = new LatinKeyboard(this, R.xml.qwerty);
-        mQwertyShiftedKeyboard = new LatinKeyboard(this, R.xml.qwerty_shift);
+	mAssignKey4Chars=Settings.isAssignKey4Chars(this);
+        mQwertyKeyboard = new LatinKeyboard(this, mAssignKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
+        mQwertyShiftedKeyboard = new LatinKeyboard(this, R.xml.qwerty_shifted);
         mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
-        mSymbolsShiftedKeyboard = new LatinKeyboard(this, R.xml.symbols_shift);
 
 	List<Keyboard.Key> keys;
-	keys = mSymbolsKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
-		mSymbolsCtrlKey = keys.get(iii);
-		break;
-	    }
-	}
 	keys = mQwertyKeyboard.getKeys();
 	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
 	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
@@ -135,8 +133,30 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		break;
 	    }
 	}
+	keys = mSymbolsKeyboard.getKeys();
+	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
+	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
+		mSymbolsCtrlKey = keys.get(iii);
+		break;
+	    }
+	}
+
+	keys = mQwertyKeyboard.getKeys();
+	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
+	    if(1==keys.get(iii).codes.length&&Keyboard.KEYCODE_SHIFT==keys.get(iii).codes[0]){
+		mQwertyShiftKey = keys.get(iii);
+		break;
+	    }
+	}
+	keys = mQwertyShiftedKeyboard.getKeys();
+	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
+	    if(1==keys.get(iii).codes.length&&Keyboard.KEYCODE_SHIFT==keys.get(iii).codes[0]){
+		mQwertyShiftedShiftKey = keys.get(iii);
+		break;
+	    }
+	}
     }
-    
+
     /**
      * Called by the framework when your view for creating input needs to
      * be generated.  This will be called the first time your input method
@@ -169,22 +189,27 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
      */
     @Override public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
-        
+
+	if(mAssignKey4Chars!=Settings.isAssignKey4Chars(this)){
+	    mAssignKey4Chars=!mAssignKey4Chars;
+	    mQwertyKeyboard = new LatinKeyboard(this, mAssignKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
+	}
+
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
         mComposing.setLength(0);
         updateCandidates();
-        
+
         if (!restarting) {
             // Clear shift states.
             mMetaState = 0;
         }
-        
+
         mPredictionOn = false;
         mCompletionOn = false;
         mCompletions = null;
 	mCapsLock = false;
-        
+
         // We are now going to initialize our state based on the type of
         // text being edited.
         switch (attribute.inputType&EditorInfo.TYPE_MASK_CLASS) {
@@ -195,14 +220,14 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 mCurrentKeyboard = mSymbolsKeyboard;
 		mCurrentCtrlKey = mSymbolsCtrlKey;
                 break;
-                
+
             case EditorInfo.TYPE_CLASS_PHONE:
                 // Phones will also default to the symbols keyboard, though
                 // often you will want to have a dedicated phone keyboard.
                 mCurrentKeyboard = mSymbolsKeyboard;
 		mCurrentCtrlKey = mSymbolsCtrlKey;
                 break;
-                
+
             case EditorInfo.TYPE_CLASS_TEXT:
                 // This is general text editing.  We will default to the
                 // normal alphabetic keyboard, and assume that we should
@@ -210,9 +235,10 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 // user types).
                 mCurrentKeyboard = mQwertyKeyboard;
 		mCurrentCtrlKey = mQwertyCtrlKey;
+		mCurrentShiftKey = mQwertyShiftKey;
                 //mPredictionOn = true;
                 mPredictionOn = false;
-                
+
                 // We now look for a few special variations of text that will
                 // modify our behavior.
                 int variation = attribute.inputType &  EditorInfo.TYPE_MASK_VARIATION;
@@ -222,15 +248,15 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     // when they are entering a password.
                     mPredictionOn = false;
                 }
-                
-                if (variation == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS 
+
+                if (variation == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
                         || variation == EditorInfo.TYPE_TEXT_VARIATION_URI
                         || variation == EditorInfo.TYPE_TEXT_VARIATION_FILTER) {
                     // Our predictions are not useful for e-mail addresses
                     // or URIs.
                     mPredictionOn = false;
                 }
-                
+
                 if ((attribute.inputType&EditorInfo.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
                     // If this is an auto-complete text view, then our predictions
                     // will not be shown and instead we will allow the editor
@@ -250,18 +276,19 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 // shifted.
                 updateShiftKeyState(attribute);
                 break;
-                
+
             default:
                 // For all unknown input types, default to the alphabetic
                 // keyboard with no special features.
                 mCurrentKeyboard = mQwertyKeyboard;
 		mCurrentCtrlKey = mQwertyCtrlKey;
+		mCurrentShiftKey = mQwertyShiftKey;
 		if(null!=mInputView){
 		    mInputView.setKeyboard(mCurrentKeyboard);
 		}
                 updateShiftKeyState(attribute);
         }
-        
+
         // Update the label on the enter key, depending on what the application
         // says it will do.
         mCurrentKeyboard.setImeOptions(getResources(), attribute.imeOptions);
@@ -273,32 +300,33 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
      */
     @Override public void onFinishInput() {
         super.onFinishInput();
-        
+
         // Clear current composing text and candidates.
         mComposing.setLength(0);
         updateCandidates();
-        
+
         // We only hide the candidates window when finishing input on
         // a particular editor, to avoid popping the underlying application
         // up and down if the user is entering text into the bottom of
         // its window.
         setCandidatesViewShown(false);
-        
+
         mCurrentKeyboard = mQwertyKeyboard;
 	mCurrentCtrlKey = mQwertyCtrlKey;
+	mCurrentShiftKey = mQwertyShiftKey;
 	mCapsLock=false;
         if (mInputView != null) {
             mInputView.closing();
         }
     }
-    
+
     @Override public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
         // Apply the selected keyboard to the input view.
         mInputView.setKeyboard(mCurrentKeyboard);
         mInputView.closing();
     }
-    
+
     /**
      * Deal with the editor reporting movement of its cursor.
      */
@@ -307,7 +335,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                 candidatesStart, candidatesEnd);
-        
+
         // If the current selection in the text view changes, we should
         // clear whatever candidate text we have.
         if (mComposing.length() > 0 && (newSelStart != candidatesEnd
@@ -336,7 +364,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		*/
                 return;
             }
-            
+
             List<String> stringList = new ArrayList<String>();
             for (int i=0; i<(completions != null ? completions.length : 0); i++) {
                 CompletionInfo ci = completions[i];
@@ -347,7 +375,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	    */
         }
     }
-    
+
     /**
      * This translates incoming hard key events in to edit operations on an
      * InputConnection.  It is only needed when using the
@@ -362,14 +390,14 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         if (c == 0 || ic == null) {
             return false;
         }
-        
+
         boolean dead = false;
 
         if ((c & KeyCharacterMap.COMBINING_ACCENT) != 0) {
             dead = true;
             c = c & KeyCharacterMap.COMBINING_ACCENT_MASK;
         }
-        
+
         if (mComposing.length() > 0) {
             char accent = mComposing.charAt(mComposing.length() -1 );
             int composed = KeyEvent.getDeadChar(accent, c);
@@ -379,12 +407,12 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                 mComposing.setLength(mComposing.length()-1);
             }
         }
-        
+
         onKey(c, null);
-        
+
         return true;
     }
-    
+
     /**
      * Use this to monitor key events being delivered to the application.
      * We get first crack at them, and can either resume them or let them
@@ -406,7 +434,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     }
                 }
                 break;
-                
+
             case KeyEvent.KEYCODE_DEL:
                 // Special handling of the delete key: if we currently are
                 // composing text for the user, we want to modify that instead
@@ -416,11 +444,11 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     return true;
                 }
                 break;
-                
+
             case KeyEvent.KEYCODE_ENTER:
                 // Let the underlying text editor always handle these.
                 return false;
-                
+
             default:
                 // For all other keys, if we want to do transformations on
                 // text being entered with a hard keyboard, we need to process
@@ -451,7 +479,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                     }
                 }
         }
-        
+
         return super.onKeyDown(keyCode, event);
     }
 
@@ -473,7 +501,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
                         keyCode, event);
             }
         }
-        
+
         return super.onKeyUp(keyCode, event);
     }
 
@@ -493,7 +521,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
      * editor state.
      */
     private void updateShiftKeyState(EditorInfo attr) {
-        if (attr != null 
+        if (attr != null
                 && mInputView != null && (mQwertyKeyboard == mInputView.getKeyboard() || mQwertyShiftedKeyboard == mInputView.getKeyboard())) {
             int caps = 0;
             EditorInfo ei = getCurrentInputEditorInfo();
@@ -503,7 +531,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	    mInputView.setShifted(mQwertyShiftedKeyboard==mInputView.getKeyboard());
         }
     }
-    
+
     /**
      * Helper to determine if a given character code is alphabetic.
      */
@@ -514,7 +542,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             return false;
         }
     }
-    
+
     /**
      * Helper to send a key down / key up pair to the current editor.
      */
@@ -524,7 +552,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         getCurrentInputConnection().sendKeyEvent(
                 new KeyEvent(KeyEvent.ACTION_UP, keyEventCode));
     }
-    
+
     /**
      * Helper to send a character to the editor as raw key events.
      */
@@ -552,6 +580,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	mQwertyShiftedCtrlKey.on=mQwertyCtrlKey.on;
 	mQwertyCtrlKey.on=false;
 	mCurrentCtrlKey=mQwertyShiftedCtrlKey;
+	mQwertyShiftedShiftKey.on=mQwertyShiftKey.on;
+	mQwertyShiftKey.on=false;
+	mCurrentShiftKey=mQwertyShiftedShiftKey;
 	mCurrentKeyboard=mQwertyShiftedKeyboard;
 
 	mInputView.setKeyboard(mCurrentKeyboard);
@@ -562,6 +593,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	mQwertyCtrlKey.on=mQwertyShiftedCtrlKey.on;
 	mQwertyShiftedCtrlKey.on=false;
 	mCurrentCtrlKey=mQwertyCtrlKey;
+	mQwertyShiftKey.on=mQwertyShiftedShiftKey.on;
+	mQwertyShiftedShiftKey.on=false;
+	mCurrentShiftKey=mQwertyShiftKey;
 	mCurrentKeyboard=mQwertyKeyboard;
 
 	mInputView.setKeyboard(mCurrentKeyboard);
@@ -571,10 +605,6 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     // Implementation of KeyboardViewListener
 
     public void onKey(int primaryCode, int[] keyCodes) {
-	if(KEYCODE_CTRL==primaryCode){
-	    // do nothing
-	    return;
-	}
 	if(KeyEvent.KEYCODE_DPAD_UP==primaryCode
 	||KeyEvent.KEYCODE_DPAD_DOWN==primaryCode
 	||KeyEvent.KEYCODE_DPAD_LEFT==primaryCode
@@ -597,7 +627,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		if(isConnectBot()){
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_CENTER);
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_SPACE);
-		    mCurrentCtrlKey.on=false;
+		    if(!mCurrentCtrlKey.pressed){
+			mCurrentCtrlKey.on=false;
+		    }
 		    mInputView.setKeyboard(mCurrentKeyboard);
 		    updateShiftKeyState(getCurrentInputEditorInfo());
 		    return;
@@ -608,7 +640,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	    }else{
 		break;
 	    }
-	    mCurrentCtrlKey.on=false;
+	    if(!mCurrentCtrlKey.pressed){
+		mCurrentCtrlKey.on=false;
+	    }
 	    mInputView.setKeyboard(mCurrentKeyboard); // against bug of Key
 	    updateShiftKeyState(getCurrentInputEditorInfo());
 	}while(false);
@@ -661,6 +695,8 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             updateShiftKeyState(getCurrentInputEditorInfo());
         } else if (primaryCode == Keyboard.KEYCODE_DELETE) {
             handleBackspace();
+        } else if (primaryCode == KEYCODE_CTRL) {
+            handleCtrl();
         } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
             handleShift();
         } else if (primaryCode == Keyboard.KEYCODE_CANCEL) {
@@ -671,10 +707,11 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         } else if (primaryCode == Keyboard.KEYCODE_MODE_CHANGE
                 && mInputView != null) {
             Keyboard current = mInputView.getKeyboard();
-            if (current == mSymbolsKeyboard || current == mSymbolsShiftedKeyboard) {
+            if (current == mSymbolsKeyboard) {
                 current = mQwertyKeyboard;
 		mCurrentKeyboard = mQwertyKeyboard;
 		mCurrentCtrlKey = mQwertyCtrlKey;
+		mCurrentShiftKey = mQwertyShiftKey;
             } else {
                 current = mSymbolsKeyboard;
 		mCurrentKeyboard = mSymbolsKeyboard;
@@ -687,7 +724,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             }
         } else {
 	    handleCharacter(primaryCode, keyCodes);
-	    if(mInputView.isShifted()&&!mCapsLock){
+	    if(mInputView.isShifted()&&(!mCapsLock)&&(!mCurrentShiftKey.pressed)){
 		setShiftOff();
 	    }
 	}
@@ -721,7 +758,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             }
         }
     }
-    
+
     public void setSuggestions(List<String> suggestions, boolean completions,
             boolean typedWordValid) {
         if (suggestions != null && suggestions.size() > 0) {
@@ -733,7 +770,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             mCandidateView.setSuggestions(suggestions, completions, typedWordValid);
         }
     }
-    
+
     private void handleBackspace() {
         final int length = mComposing.length();
         if (length > 1) {
@@ -750,18 +787,44 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         updateShiftKeyState(getCurrentInputEditorInfo());
     }
 
+    private static boolean mCtrlOnForce=false;
+    private void handleCtrl(Boolean on){
+	if(null==on){
+	    mCurrentCtrlKey.on=mCtrlOnForce;
+	    mCtrlOnForce=false;
+	    return;
+	}
+
+	if(on){
+	    mCtrlOnForce=true;
+	}
+	mCurrentCtrlKey.on=on;
+    }
+    private void handleCtrl() {
+	handleCtrl(null);
+    }
+
+    private void checkToggleCapsLock() {
+        long now = System.currentTimeMillis();
+        if (mCapsLock || mLastShiftTime + 800 > now) {
+            mCapsLock = !mCapsLock;
+            mLastShiftTime = 0;
+        } else {
+            mLastShiftTime = now;
+        }
+    }
     private void handleShift() {
         if (mInputView == null) {
             return;
         }
-        
-        Keyboard currentKeyboard = mInputView.getKeyboard();
-        if (mQwertyKeyboard == currentKeyboard || currentKeyboard == mQwertyShiftedKeyboard ) {
-            // Alphabet keyboard
+
+	Keyboard currentKeyboard = mInputView.getKeyboard();
+	if (mQwertyKeyboard == currentKeyboard || currentKeyboard == mQwertyShiftedKeyboard ) {
+	    // Alphabet keyboard
 	    boolean prevCapsLock=mCapsLock;
-            checkToggleCapsLock();
-            //mInputView.setShifted(mCapsLock || !mInputView.isShifted());
-	    if(prevCapsLock==mCapsLock||prevCapsLock){
+	    checkToggleCapsLock();
+	    //mInputView.setShifted(mCapsLock || !mInputView.isShifted());
+	    if(prevCapsLock||prevCapsLock==mCapsLock){
 		if(mQwertyKeyboard==currentKeyboard){
 		    // shift: turn on, capslock: keep off
 		    setShiftOn();
@@ -773,17 +836,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		// shift: keep on, capslock: turn on
 		mInputView.setShifted(true);
 	    }
-        } else if (currentKeyboard == mSymbolsKeyboard) {
-            mSymbolsKeyboard.setShifted(true);
-            mInputView.setKeyboard(mSymbolsShiftedKeyboard);
-            mSymbolsShiftedKeyboard.setShifted(true);
-        } else if (currentKeyboard == mSymbolsShiftedKeyboard) {
-            mSymbolsShiftedKeyboard.setShifted(false);
-            mInputView.setKeyboard(mSymbolsKeyboard);
-            mSymbolsKeyboard.setShifted(false);
-        }
+	}
     }
-    
+
     private void handleCharacter(int primaryCode, int[] keyCodes) {
         if (isInputViewShown()) {
             if (mInputView.isShifted()) {
@@ -807,20 +862,10 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         mInputView.closing();
     }
 
-    private void checkToggleCapsLock() {
-        long now = System.currentTimeMillis();
-        if (mLastShiftTime + 800 > now || mCapsLock) {
-            mCapsLock = !mCapsLock;
-            mLastShiftTime = 0;
-        } else {
-            mLastShiftTime = now;
-        }
-    }
-    
     private String getWordSeparators() {
         return mWordSeparators;
     }
-    
+
     public boolean isWordSeparator(int code) {
         String separators = getWordSeparators();
         return separators.contains(String.valueOf((char)code));
@@ -829,7 +874,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     public void pickDefaultCandidate() {
         pickSuggestionManually(0);
     }
-    
+
     public void pickSuggestionManually(int index) {
         if (mCompletionOn && mCompletions != null && index >= 0
                 && index < mCompletions.length) {
@@ -846,13 +891,13 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             commitTyped(getCurrentInputConnection());
         }
     }
-    
+
     public void swipeRight() {
         if (mCompletionOn) {
             pickDefaultCandidate();
         }
     }
-    
+
     public void swipeLeft() {
         handleBackspace();
     }
@@ -863,10 +908,22 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     public void swipeUp() {
     }
-    
+
     public void onPress(int primaryCode) {
+	if(DEBUG){
+	    Toast.makeText(this, "onPress: "+primaryCode, Toast.LENGTH_SHORT).show();
+	}
+	if(KEYCODE_CTRL==primaryCode){
+	    if(!mCurrentCtrlKey.on){
+		handleCtrl(true);
+	    }
+	}else if(Keyboard.KEYCODE_SHIFT==primaryCode){
+	    if(!mInputView.isShifted()){
+		mInputView.setShifted(true);
+	    }
+	}
     }
-    
+
     public void onRelease(int primaryCode) {
     }
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/behavior">
+	<CheckBoxPreference   
+	    android:key="assignkey4chars"  
+	    android:title="@string/title_assignkey4chars"   
+	    android:summaryOn="@string/summary_on_assignkey4chars"
+	    android:summaryOff="@string/summary_off_assignkey4chars"
+	    android:defaultValue="true"
+	/>  
+    </PreferenceCategory>
+</PreferenceScreen>

@@ -73,6 +73,7 @@ public class CandidateView extends View {
      * @param context
      * @param attrs
      */
+    @SuppressWarnings("deprecation")
     public CandidateView(Context context) {
         super(context);
         mSelectionHighlight = context.getResources().getDrawable(
