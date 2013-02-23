@@ -22,14 +22,26 @@ import android.preference.PreferenceManager;
 
 public class Settings extends android.preference.PreferenceActivity{
     public static final String KEY_ASSIGNKEY4CHARS="assignkey4chars";
-    public static boolean isAssignKey4Chars(Context context,boolean defaultValue){
+    public static final String KEY_REPEATABLE="repeatable";
+
+    public static boolean isAssignedKey4Chars(Context context,boolean defaultValue){
 	return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(KEY_ASSIGNKEY4CHARS,defaultValue);
     }
-    public static boolean isAssignKey4Chars(Context context){
-	return isAssignKey4Chars(context,false);
+    public static boolean isAssignedKey4Chars(Context context){
+	return isAssignedKey4Chars(context,false);
     }
-    public static void setAssignKey4Chars(Context context,boolean value){
+    public static void setAssignedKey4Chars(Context context,boolean value){
 	PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(KEY_ASSIGNKEY4CHARS,value).commit();
+    }
+
+    public static boolean isRepeatable(Context context,boolean defaultValue){
+	return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(KEY_REPEATABLE,defaultValue);
+    }
+    public static boolean isRepeatable(Context context){
+	return isRepeatable(context,false);
+    }
+    public static void setRepeatable(Context context,boolean value){
+	PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(KEY_REPEATABLE,value).commit();
     }
 
     /** Called when the activity is first created. */
