@@ -34,6 +34,9 @@
     <string name="label_send_key">Send</string>
     <string name="behavior">Behavior</string>
     <string name="title_assignkey4chars">special keys in qwerty keyboard</string>
-    <string name="summary_on_assignkey4chars">Assign one key for chars</string>
+    <string name="summary_on_assignkey4chars">Assign one key for multi chars</string>
     <string name="summary_off_assignkey4chars">Assign one key for one char</string>
+    <string name="title_repeatable">on long press key</string>
+    <string name="summary_on_repeatable">Repeatable</string>
+    <string name="summary_off_repeatable">Not repeatable</string>
 </resources>

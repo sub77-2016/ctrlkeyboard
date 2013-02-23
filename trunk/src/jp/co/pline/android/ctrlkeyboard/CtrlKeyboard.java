@@ -21,19 +21,15 @@
 package jp.co.pline.android.ctrlkeyboard;
 
 import android.os.Build;
-import android.os.SystemClock;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.method.MetaKeyKeyListener;
-import android.util.Log;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.inputmethod.InputMethodManager;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -80,7 +76,8 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     private String mWordSeparators;
 
-    private boolean mAssignKey4Chars=false;
+    private boolean mIsAssignedKey4Chars=false;
+    private boolean mIsRepeatable=false;
 
     private Keyboard.Key mCurrentCtrlKey;
     private Keyboard.Key mQwertyCtrlKey;
@@ -99,6 +96,53 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
         super.onCreate();
         mWordSeparators=getResources().getString(R.string.word_separators);
     }
+    private boolean isPrintable(int code){
+	return 0x20<code&&0x7f>code;
+    }
+
+    private void setupQwertyKeyboard(){
+        mQwertyKeyboard=new LatinKeyboard(this, mIsAssignedKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
+	for(Keyboard.Key key:mQwertyKeyboard.getKeys()){
+	    if(1==key.codes.length){
+		if(false){
+		}else if(KEYCODE_CTRL==key.codes[0]){
+		    mQwertyCtrlKey=key;
+		}else if(Keyboard.KEYCODE_SHIFT==key.codes[0]){
+		    mQwertyShiftKey=key;
+		}else if(mIsRepeatable&&isPrintable(key.codes[0])){
+		    key.repeatable=true;
+		}
+	    }
+	}
+    }
+    private void setupQwertyShiftedKeyboard(){
+        mQwertyShiftedKeyboard=new LatinKeyboard(this, R.xml.qwerty_shifted);
+	for(Keyboard.Key key:mQwertyShiftedKeyboard.getKeys()){
+	    if(1==key.codes.length){
+		if(false){
+		}else if(KEYCODE_CTRL==key.codes[0]){
+		    mQwertyShiftedCtrlKey=key;
+		}else if(Keyboard.KEYCODE_SHIFT==key.codes[0]){
+		    mQwertyShiftedShiftKey=key;
+		}else if(mIsRepeatable&&isPrintable(key.codes[0])){
+		    key.repeatable=true;
+		}
+	    }
+	}
+    }
+    private void setupSymbolsKeyboard(){
+        mSymbolsKeyboard=new LatinKeyboard(this, R.xml.symbols);
+	for(Keyboard.Key key:mSymbolsKeyboard.getKeys()){
+	    if(1==key.codes.length){
+		if(false){
+		}else if(KEYCODE_CTRL==key.codes[0]){
+		    mSymbolsCtrlKey=key;
+		}else if(mIsRepeatable&&isPrintable(key.codes[0])){
+		    key.repeatable=true;
+		}
+	    }
+	}
+    }
 
     /**
      * This is the point where you can do all of your UI initialization.  It
@@ -113,48 +157,12 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             if (displayWidth == mLastDisplayWidth) return;
             mLastDisplayWidth = displayWidth;
         }
-	mAssignKey4Chars=Settings.isAssignKey4Chars(this);
-        mQwertyKeyboard = new LatinKeyboard(this, mAssignKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
-        mQwertyShiftedKeyboard = new LatinKeyboard(this, R.xml.qwerty_shifted);
-        mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
 
-	List<Keyboard.Key> keys;
-	keys = mQwertyKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
-		mQwertyCtrlKey = keys.get(iii);
-		break;
-	    }
-	}
-	keys = mQwertyShiftedKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
-		mQwertyShiftedCtrlKey = keys.get(iii);
-		break;
-	    }
-	}
-	keys = mSymbolsKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&KEYCODE_CTRL==keys.get(iii).codes[0]){
-		mSymbolsCtrlKey = keys.get(iii);
-		break;
-	    }
-	}
-
-	keys = mQwertyKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&Keyboard.KEYCODE_SHIFT==keys.get(iii).codes[0]){
-		mQwertyShiftKey = keys.get(iii);
-		break;
-	    }
-	}
-	keys = mQwertyShiftedKeyboard.getKeys();
-	if(null!=keys)for(int iii=0;keys.size()>iii;iii++){
-	    if(1==keys.get(iii).codes.length&&Keyboard.KEYCODE_SHIFT==keys.get(iii).codes[0]){
-		mQwertyShiftedShiftKey = keys.get(iii);
-		break;
-	    }
-	}
+	mIsRepeatable=Settings.isRepeatable(this);
+	mIsAssignedKey4Chars=Settings.isAssignedKey4Chars(this);
+	setupQwertyKeyboard();
+	setupQwertyShiftedKeyboard();
+	setupSymbolsKeyboard();
     }
 
     /**
@@ -190,9 +198,17 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     @Override public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
 
-	if(mAssignKey4Chars!=Settings.isAssignKey4Chars(this)){
-	    mAssignKey4Chars=!mAssignKey4Chars;
-	    mQwertyKeyboard = new LatinKeyboard(this, mAssignKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
+	if(mIsRepeatable!=Settings.isRepeatable(this)){
+	    mIsRepeatable=!mIsRepeatable;
+	    if(mIsAssignedKey4Chars!=Settings.isAssignedKey4Chars(this)){
+		mIsAssignedKey4Chars=!mIsAssignedKey4Chars;
+	    }
+	    setupQwertyKeyboard();
+	    setupQwertyShiftedKeyboard();
+	    setupSymbolsKeyboard();
+	}else if(mIsAssignedKey4Chars!=Settings.isAssignedKey4Chars(this)){
+	    mIsAssignedKey4Chars=!mIsAssignedKey4Chars;
+	    setupQwertyKeyboard();
 	}
 
         // Reset our state.  We want to do this even if restarting, because
@@ -391,10 +407,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             return false;
         }
 
-        boolean dead = false;
-
         if ((c & KeyCharacterMap.COMBINING_ACCENT) != 0) {
-            dead = true;
             c = c & KeyCharacterMap.COMBINING_ACCENT_MASK;
         }
 
@@ -523,10 +536,8 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     private void updateShiftKeyState(EditorInfo attr) {
         if (attr != null
                 && mInputView != null && (mQwertyKeyboard == mInputView.getKeyboard() || mQwertyShiftedKeyboard == mInputView.getKeyboard())) {
-            int caps = 0;
             EditorInfo ei = getCurrentInputEditorInfo();
             if (ei != null && ei.inputType != EditorInfo.TYPE_NULL) {
-                caps = getCurrentInputConnection().getCursorCapsMode(attr.inputType);
             }
 	    mInputView.setShifted(mQwertyShiftedKeyboard==mInputView.getKeyboard());
         }
@@ -604,6 +615,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     // Implementation of KeyboardViewListener
 
+    @SuppressWarnings("unused")
     public void onKey(int primaryCode, int[] keyCodes) {
 	if(KeyEvent.KEYCODE_DPAD_UP==primaryCode
 	||KeyEvent.KEYCODE_DPAD_DOWN==primaryCode
