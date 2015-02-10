@@ -21,6 +21,7 @@
 package jp.co.pline.android.ctrlkeyboard;
 
 import android.os.Build;
+import android.content.res.Configuration;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.method.MetaKeyKeyListener;
@@ -78,6 +79,9 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     private boolean mIsAssignedKey4Chars=false;
     private boolean mIsRepeatable=false;
+    private boolean mIsBsKeySendCtrlQuestion=false;
+    private boolean mIsDelKeySendEscSeq=false;
+    private int mKeyHeight=0;
 
     private Keyboard.Key mCurrentCtrlKey;
     private Keyboard.Key mQwertyCtrlKey;
@@ -100,6 +104,16 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	return 0x20<code&&0x7f>code;
     }
 
+    private void reHeightKeyboard(LatinKeyboard latinKeyboard){
+	if(1>mKeyHeight){
+	    return;
+	}
+	for(Keyboard.Key key:latinKeyboard.getKeys()){
+	    key.y*=(double)mKeyHeight/key.height;
+	    key.height=mKeyHeight;
+	}
+	latinKeyboard.setKeyHeight(mKeyHeight);
+    }
     private void setupQwertyKeyboard(){
         mQwertyKeyboard=new LatinKeyboard(this, mIsAssignedKey4Chars?R.xml.qwerty_multi:R.xml.qwerty);
 	for(Keyboard.Key key:mQwertyKeyboard.getKeys()){
@@ -114,6 +128,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		}
 	    }
 	}
+	reHeightKeyboard(mQwertyKeyboard);
     }
     private void setupQwertyShiftedKeyboard(){
         mQwertyShiftedKeyboard=new LatinKeyboard(this, R.xml.qwerty_shifted);
@@ -129,6 +144,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		}
 	    }
 	}
+	reHeightKeyboard(mQwertyShiftedKeyboard);
     }
     private void setupSymbolsKeyboard(){
         mSymbolsKeyboard=new LatinKeyboard(this, R.xml.symbols);
@@ -142,6 +158,7 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		}
 	    }
 	}
+	reHeightKeyboard(mSymbolsKeyboard);
     }
 
     /**
@@ -158,8 +175,11 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
             mLastDisplayWidth = displayWidth;
         }
 
-	mIsRepeatable=Settings.isRepeatable(this);
 	mIsAssignedKey4Chars=Settings.isAssignedKey4Chars(this);
+	mIsRepeatable=Settings.isRepeatable(this);
+	mIsBsKeySendCtrlQuestion=Settings.isBsKeySendCtrlQuestion(this);
+	mIsDelKeySendEscSeq=Settings.isDelKeySendEscSeq(this);
+	mKeyHeight=(Configuration.ORIENTATION_LANDSCAPE==getResources().getConfiguration().orientation?Settings.getLandscapeKeyHeight(this):Settings.getPortraitKeyHeight(this));
 	setupQwertyKeyboard();
 	setupQwertyShiftedKeyboard();
 	setupSymbolsKeyboard();
@@ -198,17 +218,19 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
     @Override public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
 
-	if(mIsRepeatable!=Settings.isRepeatable(this)){
-	    mIsRepeatable=!mIsRepeatable;
-	    if(mIsAssignedKey4Chars!=Settings.isAssignedKey4Chars(this)){
-		mIsAssignedKey4Chars=!mIsAssignedKey4Chars;
-	    }
+	boolean isAssignedKey4Chars=Settings.isAssignedKey4Chars(this);
+	boolean isRepeatable=Settings.isRepeatable(this);
+	int keyHeight=(Configuration.ORIENTATION_LANDSCAPE==getResources().getConfiguration().orientation?Settings.getLandscapeKeyHeight(this):Settings.getPortraitKeyHeight(this));
+
+	if(mIsAssignedKey4Chars!=isAssignedKey4Chars
+	||mIsRepeatable!=isRepeatable
+	||mKeyHeight!=keyHeight){
+	    mIsAssignedKey4Chars=isAssignedKey4Chars;
+	    mIsRepeatable=isRepeatable;
+	    mKeyHeight=keyHeight;
 	    setupQwertyKeyboard();
 	    setupQwertyShiftedKeyboard();
 	    setupSymbolsKeyboard();
-	}else if(mIsAssignedKey4Chars!=Settings.isAssignedKey4Chars(this)){
-	    mIsAssignedKey4Chars=!mIsAssignedKey4Chars;
-	    setupQwertyKeyboard();
 	}
 
         // Reset our state.  We want to do this even if restarting, because
@@ -338,6 +360,10 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     @Override public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
+
+	mIsBsKeySendCtrlQuestion=Settings.isBsKeySendCtrlQuestion(this);
+	mIsDelKeySendEscSeq=Settings.isDelKeySendEscSeq(this);
+
         // Apply the selected keyboard to the input view.
         mInputView.setKeyboard(mCurrentKeyboard);
         mInputView.closing();
@@ -584,7 +610,11 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 
     public boolean isConnectBot(){
 	EditorInfo editorInfo=getCurrentInputEditorInfo();
-	return ("org.connectbot".equals(editorInfo.packageName)||"com.madgag.ssh.agent".equals(editorInfo.packageName))&&0==editorInfo.inputType;
+	//XXX android.util.Log.d("CtrlKeyboard","XXX: "+editorInfo.packageName);
+	return ("org.connectbot".equals(editorInfo.packageName)
+		||"sk.vx.connectbot".equals(editorInfo.packageName)
+		||"com.madgag.ssh.agent".equals(editorInfo.packageName)
+		)&&0==editorInfo.inputType;
     }
 
     private void setShiftOn(){
@@ -661,9 +691,13 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 	if((-1<primaryCode&&' '>primaryCode)||127==primaryCode){
 	    if(false){
 	    }else if(8==primaryCode){
-		// BS: KeyEvent{ code=67 meta=0 scancode=14 }
+		// Backspace: KeyEvent{ code=67 meta=0 scancode=14 }
 		if(isConnectBot()){
-		    getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		    if(mIsBsKeySendCtrlQuestion){
+			sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+		    }else{
+			getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		    }
 		}else{
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
 		}
@@ -684,8 +718,16 @@ public class CtrlKeyboard extends android.inputmethodservice.InputMethodService 
 		    sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER);
 		}
 	    }else if(127==primaryCode){
+		// Delete: KeyEvent{ code=112 meta=0 }
 		if(isConnectBot()){
-		    getCurrentInputConnection().commitText(String.valueOf((char) primaryCode),1);
+		    if(mIsDelKeySendEscSeq){
+			getCurrentInputConnection().commitText(String.valueOf((char) 27),0); // ESC
+			getCurrentInputConnection().commitText(String.valueOf((char) 91),0); // '['
+			getCurrentInputConnection().commitText(String.valueOf((char) 51),0); // '3'
+			getCurrentInputConnection().commitText(String.valueOf((char) 126),1); // '~'
+		    }else{
+			sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+		    }
 		}else{
 		    if(Build.VERSION_CODES.HONEYCOMB<=Build.VERSION.SDK_INT){
 			sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL);

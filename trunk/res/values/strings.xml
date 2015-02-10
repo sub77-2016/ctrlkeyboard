@@ -33,10 +33,24 @@
     <string name="label_next_key">Next</string>
     <string name="label_send_key">Send</string>
     <string name="behavior">Behavior</string>
+    <string name="look">Look</string>
+    <string name="portraitkeyheight_title">key height on portrait</string>
+    <string name="landscapekeyheight_title">key height on landscape</string>
+    <string name="keyheight_summary">30 .. 100 dip</string>
+
     <string name="title_assignkey4chars">special keys in qwerty keyboard</string>
     <string name="summary_on_assignkey4chars">Assign one key for multi chars</string>
     <string name="summary_off_assignkey4chars">Assign one key for one char</string>
+
     <string name="title_repeatable">on long press key</string>
     <string name="summary_on_repeatable">Repeatable</string>
     <string name="summary_off_repeatable">Not repeatable</string>
+
+    <string name="title_bskeysendctrlquestion">Backspace key</string>
+    <string name="summary_on_bskeysendctrlquestion">^?</string>
+    <string name="summary_off_bskeysendctrlquestion">^H</string>
+
+    <string name="title_delkeysendescseq">Delete key</string>
+    <string name="summary_on_delkeysendescseq">^[[3~</string>
+    <string name="summary_off_delkeysendescseq">^?</string>
 </resources>
